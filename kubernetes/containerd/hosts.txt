@@ -1,12 +1,12 @@
 [masters]
-jh-k8s-master001 ansible_host=10.10.0.11 ansible_user=root
-jh-k8s-master002 ansible_host=10.10.0.12 ansible_user=root
-jh-k8s-master003 ansible_host=10.10.0.13 ansible_user=root
+master001 ansible_host=10.10.0.11 ansible_user=root
+master002 ansible_host=10.10.0.12 ansible_user=root
+master003 ansible_host=10.10.0.13 ansible_user=root
 
 [workers]
-jh-k8s-worker001 ansible_host=10.10.0.14 ansible_user=root
-jh-k8s-worker002 ansible_host=10.10.0.15 ansible_user=root
-jh-k8s-worker003 ansible_host=10.10.0.16 ansible_user=root
+worker001 ansible_host=10.10.0.14 ansible_user=root
+worker002 ansible_host=10.10.0.15 ansible_user=root
+worker003 ansible_host=10.10.0.16 ansible_user=root
 
 [storage]
-jh-k8s-storage001 ansible_host=10.10.0.17 ansible_user=root
+storage001 ansible_host=10.10.0.17 ansible_user=root
