@@ -145,7 +145,6 @@
       mode: 0755
   - name: Configuring Haproxy
     copy:
-      copy:
       src: keepalived/haproxy.cfg
       dest: /etc/haproxy/haproxy.cfg
   - name: Restarting Haproxy & Keepalived service
