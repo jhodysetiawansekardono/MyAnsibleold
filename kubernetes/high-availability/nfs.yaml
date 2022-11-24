@@ -1,3 +1,4 @@
+---
 - hosts: storage
   tasks:
   - name: Create new directory for lvm
