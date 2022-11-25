@@ -288,5 +288,5 @@
       path: "{{ item }}"
       state: absent
     with_items:
-      - /root/kubernetes/join-command-controller
-      - /root/kubernetes/join-command-workers
+      - join-command-controller
+      - join-command-workers
