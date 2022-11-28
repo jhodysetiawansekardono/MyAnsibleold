@@ -1,0 +1,178 @@
+---
+- hosts: all:!storage
+  tasks:
+  - name: Mapping new hosts
+    lineinfile:
+      path: /etc/hosts
+      line: |
+
+        # master Node
+        10.10.0.11 jh-k8s-master master
+
+        # worker Node
+        10.10.0.14 jh-k8s-worker001 worker001
+        10.10.0.15 jh-k8s-worker002 worker002
+        10.10.0.16 jh-k8s-worker003 worker003
+        # worker Node
+      insertafter: EOF
+  - name: Install depedency
+    apt:
+      name: "{{ packages }}"
+      update_cache: yes
+      state: present
+    vars:
+      packages:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg
+      - lsb-release
+      - nfs-common
+  - name: Load Containerd required modules
+    copy:
+      dest: /etc/modules-load.d/containerd.conf
+      content: |
+        overlay
+        br_netfilter
+  - name: Load required sysctl parameters
+    copy:
+      dest: /etc/sysctl.d/99-kubernetes-cri.conf
+      content: |
+        net.bridge.bridge-nf-call-iptables  = 1
+        net.bridge.bridge-nf-call-ip6tables = 1
+        net.ipv4.ip_forward                 = 1
+  - name: Applying modules and parameters
+    shell: |
+      modprobe overlay
+      modprobe br_netfilter
+      sysctl --system
+  - name: Install Containerd
+    apt:
+      name: containerd
+      state: present
+  - name: Create Containerd directories
+    file:
+      path: /etc/containerd
+      state: directory
+  - name: Configuring Containerd
+    shell: |
+      containerd config default | tee /etc/containerd/config.toml
+      sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
+  - name: Restarting Containerd service
+    systemd:
+      name: containerd
+      state: restarted
+  - name: Remove swapfile from /etc/fstab
+    mount:
+      name: "{{ item }}"
+      fstype: swap
+      state: absent
+    with_items:
+      - swap
+      - none
+  - name: Disable swap
+    command: swapoff -a
+    when: ansible_swaptotal_mb > 0
+  - name: Add an apt signing key for Kubernetes
+    apt_key:
+      url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+      state: present
+  - name: Adding apt repository for Kubernetes
+    apt_repository:
+      repo: deb https://apt.kubernetes.io/ kubernetes-xenial main
+      state: present
+      filename: kubernetes.list
+  - name: Install Kubernetes binaries
+    apt:
+      name: "{{ packages }}"
+      state: present
+      update_cache: yes
+    vars:
+      packages:
+        - kubelet=1.24.6-00
+        - kubeadm=1.24.6-00
+        - kubectl=1.24.6-00
+  - name: Disable auto updates for Kubernetes packages
+    dpkg_selections:
+      name: "{{ item }}"
+      selection: hold
+    loop:
+      - kubelet
+      - kubeadm
+      - kubectl
+- hosts: masters
+  tasks:
+  - name: Creating kubeadm config file
+    copy:
+      src: kubeadm-config/kubernetes-1.24.6.yaml
+      dest: /root/kubeadm-config.yaml
+  - name: Initialize the first Kubernetes master
+    shell: kubeadm init --config /root/kubeadm-config.yaml
+  - name: Apply Calico pod network
+    shell: |
+      mkdir -p /root/.kube
+      cp -i /etc/kubernetes/admin.conf /root/.kube/config
+      chown $(id -u):$(id -g) /root/.kube/config
+      kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
+  - name: Generate join command for workers
+    command: kubeadm token create --print-join-command
+    register: join_command_workers
+  - name: Copy join command for workers to local file
+    local_action: copy content="{{ join_command_workers.stdout_lines[0] }}" dest="./join-command-workers"
+- hosts: workers
+  tasks:
+  - name: Copy the join command to workers
+    copy:
+      mode: 0777
+      src: join-command-workers
+      dest: /tmp/join-command.sh
+  - name: Join the workers node to cluster
+    command: sh /tmp/join-command.sh
+- hosts: masters
+  tasks:
+  - name: Labeling worker nodes
+    shell: for hosts in $(kubectl get nodes | grep worker | awk '{print$1}'); do kubectl label nodes $hosts type=app; kubectl label nodes $hosts node-role.kubernetes.io/worker=; done
+  - name: Confirm if you want to create metallb
+    pause:
+      prompt: "Do you want to create metallb? (yes/no)"
+    register: create_metallb
+  - name: Setup metallb
+    shell: kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.5/config/manifests/metallb-native.yaml
+    when: create_metallb.user_input | bool
+  - name: Waiting metallb controller ready
+    pause:
+      echo: yes
+      minutes: 2
+    when: create_metallb.user_input | bool
+  - name: Create metallb configuration
+    copy:
+      src: manifest/metallb-config.yaml
+      dest: /root/metallb-config.yaml
+    when: create_metallb.user_input | bool
+  - name: Apply metallb configuration
+    shell: kubectl create -f /root/metallb-config.yaml
+    when: create_metallb.user_input | bool
+  - name: Confirm if you want to create nginx ingress controller
+    pause:
+      prompt: "Do you want to create nginx ingress controller? (yes/no)"
+    register: create_ingress_controller
+  - name: Install nginx ingress controller
+    shell: kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/baremetal/deploy.yaml
+    when: create_ingress_controller.user_input | bool
+  - name: Increasing ingress controller replica
+    shell: kubectl -n ingress-nginx scale deployment ingress-nginx-controller --replicas=3
+    when: create_ingress_controller.user_input | bool
+  - name: Confirm if you want to create kubernetes dashboard
+    pause:
+      prompt: "Do you want to create kubernetes dashboard? (yes/no)"
+    register: create_kubernetes_dashboard
+  - name: Install kubernetes dashboard
+    shell: kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml
+    when: create_kubernetes_dashboard.user_input | bool
+- hosts: localhost
+  connection: local
+  tasks:
+  - name: Removing join command
+    file:
+      path: join-command-workers
+      state: absent
