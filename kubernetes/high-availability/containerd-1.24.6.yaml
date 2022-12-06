@@ -174,6 +174,19 @@
       cp -i /etc/kubernetes/admin.conf /root/.kube/config
       chown $(id -u):$(id -g) /root/.kube/config
       kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
+  - name: Configure kubernetes cluster to use haproxy frontend port
+    shell: |
+      kubectl -n kube-system get configmap kubeadm-config -o jsonpath='{.data.ClusterConfiguration}' > /root/kubeadm.yaml
+      sed -i 's/6443/8443/g' /root/kubeadm.yaml
+      kubeadm init phase upload-config kubeadm --config /root/kubeadm.yaml
+      kubectl -n kube-system get cm kube-proxy -o yaml > /root/kube-proxy.yaml
+      sed -i 's/6443/8443/g' /root/kube-proxy.yaml
+      kubectl apply -f /root/kube-proxy.yaml
+      kubectl -n kube-system rollout restart ds kube-proxy
+      kubectl -n kube-system rollout status ds kube-proxy
+      kubectl -n kube-public get cm cluster-info -o yaml > /root/cluster-info.yaml
+      sed -i 's/6443/8443/g' /root/cluster-info.yaml
+      kubectl apply -f /root/cluster-info.yaml
   - name: Generate join command for control-plane
     shell: echo "$(kubeadm token create --print-join-command) --control-plane --certificate-key $(kubeadm init phase upload-certs --upload-certs | grep -vw -e certificate -e Namespace)"
     register: join_command_controller
@@ -193,12 +206,6 @@
       dest: /tmp/join-command.sh
   - name: Join the control plane node to cluster
     command: sh /tmp/join-command.sh
-  - name: Configure kubelet to use haproxy frontend port
-    shell: sed -i 's/6443/8443/g' /etc/kubernetes/admin.conf /etc/kubernetes/kubelet.conf
-  - name: Apply kubelet haproxy configuration
-    systemd:
-      name: kubelet
-      state: restarted
   - name: Copy kubeconfig
     shell: |
       mkdir -p /root/.kube
@@ -213,12 +220,6 @@
       dest: /tmp/join-command.sh
   - name: Join the control plane node to cluster
     command: sh /tmp/join-command.sh
-  - name: Configure kubelet to use haproxy frontend port
-    shell: sed -i 's/6443/8443/g' /etc/kubernetes/admin.conf /etc/kubernetes/kubelet.conf
-  - name: Apply kubelet haproxy configuration
-    systemd:
-      name: kubelet
-      state: restarted
   - name: Copy kubeconfig
     shell: |
       mkdir -p /root/.kube
@@ -233,12 +234,6 @@
       dest: /tmp/join-command.sh
   - name: Join the workers node to cluster
     command: sh /tmp/join-command.sh
-  - name: Configure kubelet to use haproxy frontend port
-    shell: sed -i 's/6443/8443/g' /etc/kubernetes/kubelet.conf
-  - name: Apply kubelet haproxy configuration
-    systemd:
-      name: kubelet
-      state: restarted
 - hosts: master001
   tasks:
   - name: Labeling worker nodes
