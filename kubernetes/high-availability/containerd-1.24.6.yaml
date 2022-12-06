@@ -176,9 +176,9 @@
       kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
   - name: Configure kubernetes cluster to use haproxy frontend port
     shell: |
-      kubectl -n kube-system get configmap kubeadm-config -o jsonpath='{.data.ClusterConfiguration}' > /root/kubeadm.yaml
-      sed -i 's/6443/8443/g' /root/kubeadm.yaml
-      kubeadm init phase upload-config kubeadm --config /root/kubeadm.yaml
+      kubectl -n kube-system get configmap kubeadm-config -o jsonpath='{.data.ClusterConfiguration}' > /root/kubeadm-config.yaml
+      sed -i 's/6443/8443/g' /root/kubeadm-config.yaml
+      kubeadm init phase upload-config kubeadm --config /root/kubeadm-config.yaml
       kubectl -n kube-system get cm kube-proxy -o yaml > /root/kube-proxy.yaml
       sed -i 's/6443/8443/g' /root/kube-proxy.yaml
       kubectl apply -f /root/kube-proxy.yaml
@@ -275,6 +275,15 @@
   - name: Install kubernetes dashboard
     shell: kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml
     when: create_kubernetes_dashboard.user_input | bool
+  - name: Cleaning manifest
+    file:
+      path: "{{ item }}"
+      state: absent
+    with_items:
+      - /root/cluster-info.yaml
+      - /root/kube-proxy.yaml
+      - /root/kubeadm-config.yaml
+      - /root/metallb-config.yaml
 - hosts: localhost
   connection: local
   tasks:
