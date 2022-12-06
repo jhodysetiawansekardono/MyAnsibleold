@@ -7,15 +7,15 @@
       line: |
 
         # master Node
-        10.10.0.11 jh-k8s-master001 master001
-        10.10.0.12 jh-k8s-master002 master002
-        10.10.0.13 jh-k8s-master003 master003
+        10.15.0.11 jh-k8s-master001 master001
+        10.15.0.12 jh-k8s-master002 master002
+        10.15.0.13 jh-k8s-master003 master003
         # master Node
 
         # worker Node
-        10.10.0.14 jh-k8s-worker001 worker001
-        10.10.0.15 jh-k8s-worker002 worker002
-        10.10.0.16 jh-k8s-worker003 worker003
+        10.15.0.14 jh-k8s-worker001 worker001
+        10.15.0.15 jh-k8s-worker002 worker002
+        10.15.0.16 jh-k8s-worker003 worker003
         # worker Node
       insertafter: EOF
   - name: Install depedency
