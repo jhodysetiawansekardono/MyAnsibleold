@@ -1,7 +1,7 @@
 #!/bin/sh
 
 K8S_API=k8s-api.beruanglaut.cloud
-K8S_VIP=10.10.0.10
+K8S_VIP=10.15.0.10
 
 errorExit() {
     echo "*** $*" 1>&2
