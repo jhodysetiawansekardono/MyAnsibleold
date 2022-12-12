@@ -194,7 +194,7 @@
       mkdir -p /root/.kube
       cp -i /etc/kubernetes/admin.conf /root/.kube/config
       chown $(id -u):$(id -g) /root/.kube/config
-      kubectl apply -f https://docs.projectcalico.org/v3.15/manifests/calico.yaml
+      kubectl apply -f https://docs.projectcalico.org/v3.14/manifests/calico.yaml
   - name: Configure kubernetes cluster to use haproxy frontend port
     shell: |
       kubectl -n kube-system get configmap kubeadm-config -o jsonpath='{.data.ClusterConfiguration}' > /root/kubeadm-config.yaml
