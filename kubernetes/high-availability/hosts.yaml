@@ -7,6 +7,3 @@ master003 ansible_host=10.15.0.13 ansible_user=root
 worker001 ansible_host=10.15.0.14 ansible_user=root
 worker002 ansible_host=10.15.0.15 ansible_user=root
 worker003 ansible_host=10.15.0.16 ansible_user=root
-
-[storage]
-storage001 ansible_host=10.15.0.17 ansible_user=root
