@@ -1,5 +1,5 @@
 ---
-- hosts: all:!storage
+- hosts: all
   tasks:
   - name: Mapping new hosts
     lineinfile:
