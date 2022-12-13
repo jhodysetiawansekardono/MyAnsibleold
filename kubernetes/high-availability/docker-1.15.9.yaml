@@ -264,20 +264,20 @@
       prompt: "Do you want to create metallb? (yes/no)"
     register: create_metallb
   - name: Setup metallb
-    shell: kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.5/config/manifests/metallb-native.yaml
+    shell: |
+      kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.10/manifests/namespace.yaml
+      kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.10/manifests/metallb.yaml
     when: create_metallb.user_input | bool
   - name: Waiting metallb controller ready
     pause:
       echo: yes
       minutes: 2
     when: create_metallb.user_input | bool
-  - name: Create metallb configuration
-    copy:
-      src: manifest/metallb-config.yaml
-      dest: /root/metallb-config.yaml
-    when: create_metallb.user_input | bool
   - name: Apply metallb configuration
-    shell: kubectl create -f /root/metallb-config.yaml
+    shell: |
+      wget https://raw.githubusercontent.com/metallb/metallb/v0.10/manifests/example-layer2-config.yaml -o /root/metallb-config.yaml
+      sed -i 's+192.168.1.240/28+10.15.0.200-10.15.0.250+g' metallb-config.yaml
+      kubectl apply -f /root/meatallb-config.yaml
     when: create_metallb.user_input | bool
   - name: Confirm if you want to create nginx ingress controller
     pause:
