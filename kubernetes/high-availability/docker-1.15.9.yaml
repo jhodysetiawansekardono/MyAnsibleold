@@ -279,25 +279,58 @@
     shell: |
       wget https://raw.githubusercontent.com/metallb/metallb/v0.10/manifests/example-layer2-config.yaml -O /root/metallb-config.yaml
       sed -i 's+192.168.1.240/28+10.15.0.200-10.15.0.250+g' /root/metallb-config.yaml
-      kubectl apply -f /root/meatallb-config.yaml
+      kubectl apply -f /root/metallb-config.yaml
     when: create_metallb.user_input | bool
-  - name: Confirm if you want to create nginx ingress controller
-    pause:
-      prompt: "Do you want to create nginx ingress controller? (yes/no)"
-    register: create_ingress_controller
-  - name: Install nginx ingress controller
-    shell: kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/baremetal/deploy.yaml
-    when: create_ingress_controller.user_input | bool
-  - name: Increasing ingress controller replica
-    shell: kubectl -n ingress-nginx scale deployment ingress-nginx-controller --replicas=3
-    when: create_ingress_controller.user_input | bool
   - name: Confirm if you want to create kubernetes dashboard
     pause:
       prompt: "Do you want to create kubernetes dashboard? (yes/no)"
     register: create_kubernetes_dashboard
   - name: Install kubernetes dashboard
-    shell: kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml
+    shell: kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.5.0/aio/deploy/recommended.yaml
     when: create_kubernetes_dashboard.user_input | bool
+  - name: Copy k8s dashboard config file
+    copy:
+      src: '{{item}}'
+      dest: /root/
+    loop:
+      - manifest/user-k8s-dashboard.yaml
+      - scripts/kubeconfig-dashboard.sh
+    when: create_kubernetes_dashboard.user_input | bool
+  - name: Creating user and kubeconfig for kubernetes dashboard
+    shell: |
+      kubectl apply -f /root/user-k8s-dashboard.yaml
+      bash /root/kubeconfig-dashboard.sh
+    when: create_kubernetes_dashboard.user_input | bool
+  - name: Confirm if you want to create loadbalancer for k8s dashboard
+    pause:
+      prompt: "Do you want to create loadbalancer for k8s dashboard? (yes/no)"
+    register: create_lb_ingress_controller
+  - name: Creating loadbalancer for k8s dashboard
+    shell: |
+      kubectl -n kubernetes-dashboard get svc kubernetes-dashboard -o yaml > /root/kubernetes-dashboard-svc.yaml
+      sed -i 's+ClusterIP+LoadBalancer+g' /root/kubernetes-dashboard-svc.yaml
+      kubectl apply -f /root/kubernetes-dashboard-svc.yaml
+    when: create_lb_ingress_controller.user_input | bool
+  - name: Confirm if you want to create nginx ingress controller
+    pause:
+      prompt: "Do you want to create nginx ingress controller? (yes/no)"
+    register: create_ingress_controller
+  - name: Install nginx ingress controller
+    shell: kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/ingress-nginx-2.5.0/deploy/static/provider/baremetal/deploy.yaml
+    when: create_ingress_controller.user_input | bool
+  - name: Increasing ingress controller replica
+    shell: kubectl -n ingress-nginx scale deployment ingress-nginx-controller --replicas=3
+    when: create_ingress_controller.user_input | bool
+  - name: Confirm if you want to create loadbalancer for nginx-ingress
+    pause:
+      prompt: "Do you want to create loadbalancer for nginx-ingress? (yes/no)"
+    register: create_lb_ingress_controller
+  - name: Creating loadbalancer for nginx-ingress
+    shell: |
+      kubectl -n ingress-nginx get svc ingress-nginx-controller -o yaml > /root/ingress-nginx-svc.yaml
+      sed -i 's+NodePort+LoadBalancer+g' /root/ingress-nginx-svc.yaml
+      kubectl apply -f /root/ingress-nginx-svc.yaml
+    when: create_lb_ingress_controller.user_input | bool
   - name: Cleaning manifest
     file:
       path: "{{ item }}"
@@ -307,6 +340,10 @@
       - /root/kube-proxy.yaml
       - /root/kubeadm-config.yaml
       - /root/metallb-config.yaml
+      - /root/ingress-nginx-svc.yaml
+      - /root/kubernetes-dashboard-svc.yaml
+      - /root/user-k8s-dashboard.yaml
+      - /root/kubeconfig-dashboard.sh
 - hosts: localhost
   connection: local
   tasks:
