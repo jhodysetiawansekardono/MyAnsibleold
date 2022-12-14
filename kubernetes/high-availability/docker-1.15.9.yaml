@@ -276,7 +276,7 @@
   - name: Apply metallb configuration
     shell: |
       wget https://raw.githubusercontent.com/metallb/metallb/v0.10/manifests/example-layer2-config.yaml -O /root/metallb-config.yaml
-      sed -i 's+192.168.1.240/28+10.15.0.200-10.15.0.250+g' metallb-config.yaml
+      sed -i 's+192.168.1.240/28+10.15.0.200-10.15.0.250+g' /root/metallb-config.yaml
       kubectl apply -f /root/meatallb-config.yaml
     when: create_metallb.user_input | bool
   - name: Confirm if you want to create nginx ingress controller
