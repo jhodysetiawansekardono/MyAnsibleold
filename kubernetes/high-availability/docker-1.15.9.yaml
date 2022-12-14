@@ -124,6 +124,8 @@
       - kubelet
       - kubeadm
       - kubectl
+      - docker.io
+      - containerd
 - hosts: masters
   tasks:
   - name: Install haproxy & keepalived
